@@ -1,11 +1,14 @@
 package co.edu.umanizales.myfirstap.service;
 
 import co.edu.umanizales.myfirstap.model.Location;
+import co.edu.umanizales.myfirstap.model.Store;
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvValidationException;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
 import java.io.FileReader;
@@ -16,41 +19,37 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
-@Getter
 @Service
+@Getter
 public class StoreService {
+    @Autowired
+    private LocationService locationService;
 
-    private List<Location> locations;
+    @Getter
+    private List<Store> stores;
 
-    @Value( "${locations_filename}" )
-    private String locationsFilename;
+    @Value("${store_filename}")
+    private String storeFileName;
 
     @PostConstruct
-    public void readStoresFromCSV() throws IOException, URISyntaxException {
-        locations= new ArrayList<>();
+    public void readLocationsFromCSV() throws IOException {
+        stores = new ArrayList<>();
 
-        Path pathFile = Paths.get(ClassLoader.getSystemResource(locationsFilename).toURI());
+        try (CSVReader csvReader = new CSVReader(new FileReader(
+                new ClassPathResource(storeFileName).getFile()))) {
 
-        try (CSVReader csvReader = new CSVReader(new FileReader(pathFile.toString()))) {
             String[] line;
-            csvReader.skip(1);
-            // Leer todas las filas del CSV
-            while ((line = csvReader.readNext()) != null) {
+            csvReader.skip(1); // Omitir cabecera si aplica
 
-                // Crear un nuevo objeto Location y agregarlo a la lista
-                locations.add(new Location(line[2],line[3]));
+            while ((line = csvReader.readNext()) != null) {
+                // line[0] = código, line[3] = nombre del municipio
+                stores.add(new Store(locationService.getLocationByCode(line[0]), line[1],line[2],line[3],line[4]));
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-            throw e;  // Lanza la excepción para que pueda manejarse en la capa superior si es necesario
-        } catch (CsvValidationException e) {
-            throw new RuntimeException(e);
-        }
+
+        } catch (IOException | CsvValidationException e) {
+            throw new RuntimeException("Error leyendo el archivo CSV", e);
     }
 }
 
-
-
-
-
+}
 
